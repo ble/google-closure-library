@@ -42,12 +42,13 @@
 goog.provide('goog.editor.plugins.FirstStrong');
 
 goog.require('goog.dom');
-goog.require('goog.dom.NodeIterator');
 goog.require('goog.dom.NodeType');
+goog.require('goog.dom.TagIterator');
 goog.require('goog.dom.TagName');
 goog.require('goog.editor.Command');
 goog.require('goog.editor.Plugin');
 goog.require('goog.editor.node');
+goog.require('goog.editor.range');
 goog.require('goog.i18n.bidi');
 goog.require('goog.i18n.uChar');
 goog.require('goog.iter');
@@ -121,6 +122,10 @@ goog.editor.plugins.FirstStrong.prototype.handleKeyPress = function(e) {
   if (!this.isNewBlock_) {
     return false;  // We've already determined this paragraph's direction.
   }
+  // Ignore non-character key press events.
+  if (e.ctrlKey || e.metaKey) {
+    return false;
+  }
   var newChar = goog.i18n.uChar.fromCharCode(e.charCode);
   if (!newChar) {
     return false;  // Unrecognized key.
@@ -188,11 +193,10 @@ goog.editor.plugins.FirstStrong.prototype.getBlockAncestor_ = function() {
  */
 goog.editor.plugins.FirstStrong.prototype.isNeutralBlock_ = function() {
   var root = this.getBlockAncestor_();
-  var cursor = this.getFieldObject().getRange().getStartNode();
-
-  if (root == cursor) {  // This will be the beginning of a new text node.
-    cursor = root.lastChild;
-  }
+  // The exact node with the cursor location. Simply calling getStartNode() on
+  // the range only returns the containing block node.
+  var cursor = goog.editor.range.getDeepEndPoint(
+      this.getFieldObject().getRange(), false).node;
 
   // In FireFox the BR tag also represents a change in paragraph if not inside a
   // list. So we need special handling to only look at the sub-block between
@@ -235,23 +239,23 @@ goog.editor.plugins.FirstStrong.prototype.isList_ = function(element) {
  *     is in.
  * @param {Node} cursorLocation Node where the cursor currently is, marking the
  *     paragraph whose text we will return.
- * @param {function(Node): boolean} isParagraphBoundry The function to determine
- *     if a node represents the start or end of the paragraph.
+ * @param {function(Node): boolean} isParagraphBoundary The function to
+ *     determine if a node represents the start or end of the paragraph.
  * @return {string} the text in the paragraph around the cursor location.
  * @private
  */
 goog.editor.plugins.FirstStrong.prototype.getTextAround_ = function(root,
-    cursorLocation, isParagraphBoundry) {
+    cursorLocation, isParagraphBoundary) {
   // The buffer where we're collecting the text.
   var buffer = [];
   // Have we reached the cursor yet, or are we still before it?
   var pastCursorLocation = false;
 
   if (root && cursorLocation) {
-    goog.iter.some(new goog.dom.NodeIterator(root), function(node) {
+    goog.iter.some(new goog.dom.TagIterator(root), function(node) {
       if (node == cursorLocation) {
         pastCursorLocation = true;
-      } else if (isParagraphBoundry(node)) {
+      } else if (isParagraphBoundary(node)) {
         if (pastCursorLocation) {
           // This is the end of the paragraph containing the cursor. We're done.
           return true;
