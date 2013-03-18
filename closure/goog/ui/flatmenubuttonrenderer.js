@@ -22,8 +22,12 @@
 
 goog.provide('goog.ui.FlatMenuButtonRenderer');
 
+goog.require('goog.a11y.aria');
+goog.require('goog.a11y.aria.State');
+goog.require('goog.asserts');
+goog.require('goog.dom');
+goog.require('goog.string');
 goog.require('goog.style');
-goog.require('goog.ui.ControlContent');
 goog.require('goog.ui.FlatButtonRenderer');
 goog.require('goog.ui.INLINE_BLOCK_CLASSNAME');
 goog.require('goog.ui.Menu');
@@ -116,7 +120,7 @@ goog.ui.FlatMenuButtonRenderer.prototype.decorate = function(button, element) {
   if (menuElem) {
     // Move the menu element directly under the body, but hide it first; see
     // bug 1089244.
-    goog.style.showElement(menuElem, false);
+    goog.style.setElementShown(menuElem, false);
     button.getDomHelper().getDocument().body.appendChild(menuElem);
 
     // Decorate the menu and attach it to the button.
@@ -201,4 +205,3 @@ goog.ui.registry.setDecoratorByClassName(
       return new goog.ui.MenuButton(null, null,
           goog.ui.FlatMenuButtonRenderer.getInstance());
     });
-

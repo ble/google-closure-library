@@ -540,6 +540,13 @@ goog.dom.getDocumentScroll = function() {
 goog.dom.getDocumentScroll_ = function(doc) {
   var el = goog.dom.getDocumentScrollElement_(doc);
   var win = goog.dom.getWindow_(doc);
+  if (goog.userAgent.IE && goog.userAgent.isVersion('10') &&
+      win.pageYOffset != el.scrollTop) {
+    // The keyboard on IE10 touch devices shifts the page using the pageYOffset
+    // without modifying scrollTop. For this case, we want the body scroll
+    // offsets.
+    return new goog.math.Coordinate(el.scrollLeft, el.scrollTop);
+  }
   return new goog.math.Coordinate(win.pageXOffset || el.scrollLeft,
       win.pageYOffset || el.scrollTop);
 };
@@ -736,11 +743,11 @@ goog.dom.createElement = function(name) {
 
 /**
  * Creates a new text node.
- * @param {string} content Content.
+ * @param {number|string} content Content.
  * @return {!Text} The new text node.
  */
 goog.dom.createTextNode = function(content) {
-  return document.createTextNode(content);
+  return document.createTextNode(String(content));
 };
 
 
@@ -881,6 +888,9 @@ goog.dom.isCss1CompatMode_ = function(doc) {
  *   console.log(a.childNodes.length);  // 2
  *   console.log(a.innerHTML);  // Chrome: "", IE9: "foobar", FF3.5: "foobar"
  * </pre>
+ *
+ * For more information, see:
+ * http://dev.w3.org/html5/markup/syntax.html#syntax-elements
  *
  * TODO(user): Rename shouldAllowChildren() ?
  *
@@ -1475,8 +1485,8 @@ goog.dom.getFrameContentWindow = function(frame) {
 /**
  * Cross-browser function for setting the text content of an element.
  * @param {Element} element The element to change the text content of.
- * @param {string} text The string that should replace the current element
- *     content.
+ * @param {string|number} text The string that should replace the current
+ *     element content.
  */
 goog.dom.setTextContent = function(element, text) {
   if ('textContent' in element) {
@@ -1492,7 +1502,7 @@ goog.dom.setTextContent = function(element, text) {
   } else {
     goog.dom.removeChildren(element);
     var doc = goog.dom.getOwnerDocument(element);
-    element.appendChild(doc.createTextNode(text));
+    element.appendChild(doc.createTextNode(String(text)));
   }
 };
 
@@ -2169,11 +2179,11 @@ goog.dom.DomHelper.prototype.createElement = function(name) {
 
 /**
  * Creates a new text node.
- * @param {string} content Content.
+ * @param {number|string} content Content.
  * @return {!Text} The new text node.
  */
 goog.dom.DomHelper.prototype.createTextNode = function(content) {
-  return this.document_.createTextNode(content);
+  return this.document_.createTextNode(String(content));
 };
 
 
