@@ -48,6 +48,46 @@ goog.global = this;
 
 
 /**
+ * A hook for overriding the define values in uncompiled mode.
+ *
+ * In uncompiled mode, {@code CLOSURE_DEFINES} may be defined before loading
+ * base.js.  If a key is defined in {@code CLOSURE_DEFINES}, {@code goog.define}
+ * will use the value instead of the default value.  This allows flags to be
+ * overwritten without compilation (this is normally accomplished with the
+ * compiler's "define" flag).
+ *
+ * Example:
+ * <pre>
+ *   var CLOSURE_DEFINES = {'goog.DEBUG', false};
+ * </pre>
+ *
+ * @type {Object.<string, (string|number|boolean)>|undefined}
+ */
+goog.global.CLOSURE_DEFINES;
+
+
+/**
+ * Defines a named value. In uncompiled mode, the value is retreived from
+ * CLOSURE_DEFINES if the object is defined and has the property specified,
+ * and otherwise used the defined defaultValue. When compiled, the default
+ * can be overridden using compiler command-line options.
+ *
+ * @param {string} name The distinguished name to provide.
+ * @param {string|number|boolean} defaultValue
+ */
+goog.define = function(name, defaultValue) {
+  var value = defaultValue;
+  if (!COMPILED) {
+    if (goog.global.CLOSURE_DEFINES && Object.prototype.hasOwnProperty.call(
+        goog.global.CLOSURE_DEFINES, name)) {
+      value = goog.global.CLOSURE_DEFINES[name];
+    }
+  }
+  goog.exportPath_(name, value);
+};
+
+
+/**
  * @define {boolean} DEBUG is provided as a convenience so that debugging code
  * that should not be included in a production js_binary can be easily stripped
  * by specifying --define goog.DEBUG=false to the JSCompiler. For example, most
@@ -1507,6 +1547,15 @@ goog.inherits = function(childCtor, parentCtor) {
  */
 goog.base = function(me, opt_methodName, var_args) {
   var caller = arguments.callee.caller;
+
+  if (goog.DEBUG) {
+    if (!caller) {
+      throw Error('arguments.caller not defined.  goog.base() expects not ' +
+                  'to be running in strict mode. See ' +
+                  'http://www.ecma-international.org/ecma-262/5.1/#sec-C');
+    }
+  }
+
   if (caller.superClass_) {
     // This is a constructor. Call the superclass constructor.
     return caller.superClass_.constructor.apply(

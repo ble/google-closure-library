@@ -19,7 +19,7 @@ goog.addDependency('../../third_party/closure/goog/caja/string/html/htmlsanitize
 goog.addDependency('../../third_party/closure/goog/dojo/dom/query.js', ['goog.dom.query'], ['goog.array', 'goog.dom', 'goog.functions', 'goog.string', 'goog.userAgent']);
 goog.addDependency('../../third_party/closure/goog/jpeg_encoder/jpeg_encoder_basic.js', ['goog.crypt.JpegEncoder'], ['goog.crypt.base64']);
 goog.addDependency('../../third_party/closure/goog/loremipsum/text/loremipsum.js', ['goog.text.LoremIpsum'], ['goog.array', 'goog.math', 'goog.string', 'goog.structs.Map', 'goog.structs.Set']);
-goog.addDependency('../../third_party/closure/goog/mochikit/async/deferred.js', ['goog.async.Deferred', 'goog.async.Deferred.AlreadyCalledError', 'goog.async.Deferred.CancelledError'], ['goog.array', 'goog.asserts', 'goog.debug.Error']);
+goog.addDependency('../../third_party/closure/goog/mochikit/async/deferred.js', ['goog.async.Deferred', 'goog.async.Deferred.AlreadyCalledError', 'goog.async.Deferred.CanceledError', 'goog.async.Deferred.CancelledError'], ['goog.array', 'goog.asserts', 'goog.debug.Error']);
 goog.addDependency('../../third_party/closure/goog/mochikit/async/deferredlist.js', ['goog.async.DeferredList'], ['goog.array', 'goog.async.Deferred']);
 goog.addDependency('../../third_party/closure/goog/osapi/osapi.js', ['goog.osapi'], []);
 goog.addDependency('a11y/aria/announcer.js', ['goog.a11y.aria.Announcer'], ['goog.Disposable', 'goog.a11y.aria', 'goog.a11y.aria.LivePriority', 'goog.a11y.aria.State', 'goog.dom', 'goog.object']);
@@ -344,6 +344,8 @@ goog.addDependency('labs/classdef/classdef.js', ['goog.labs.classdef'], []);
 goog.addDependency('labs/mock/mock.js', ['goog.labs.mock'], ['goog.array', 'goog.debug', 'goog.debug.Error', 'goog.functions', 'goog.json']);
 goog.addDependency('labs/net/image.js', ['goog.labs.net.image'], ['goog.events.EventHandler', 'goog.events.EventType', 'goog.net.EventType', 'goog.result.SimpleResult', 'goog.userAgent']);
 goog.addDependency('labs/net/image_test.js', ['goog.labs.net.imageTest'], ['goog.events', 'goog.labs.net.image', 'goog.result', 'goog.result.Result', 'goog.string', 'goog.testing.AsyncTestCase', 'goog.testing.jsunit', 'goog.testing.recordFunction']);
+goog.addDependency('labs/net/webchannel.js', ['goog.net.WebChannel', 'goog.net.WebChannel.ErrorEvent', 'goog.net.WebChannel.ErrorStatus', 'goog.net.WebChannel.MessageData', 'goog.net.WebChannel.MessageEvent', 'goog.net.WebChannel.Options'], ['goog.events.Event', 'goog.events.EventTarget']);
+goog.addDependency('labs/net/webchanneltransport.js', ['goog.net.WebChannelTransport'], ['goog.net.WebChannel', 'goog.net.WebChannel.Options']);
 goog.addDependency('labs/net/xhr.js', ['goog.labs.net.xhr', 'goog.labs.net.xhr.Error', 'goog.labs.net.xhr.HttpError', 'goog.labs.net.xhr.TimeoutError'], ['goog.debug.Error', 'goog.json', 'goog.net.HttpStatus', 'goog.net.XmlHttp', 'goog.result', 'goog.result.SimpleResult', 'goog.string', 'goog.uri.utils']);
 goog.addDependency('labs/object/object.js', ['goog.labs.object'], []);
 goog.addDependency('labs/observe/notice.js', ['goog.labs.observe.Notice'], []);
@@ -365,6 +367,8 @@ goog.addDependency('labs/testing/matcher.js', ['goog.labs.testing.Matcher'], [])
 goog.addDependency('labs/testing/numbermatcher.js', ['goog.labs.testing.CloseToMatcher', 'goog.labs.testing.EqualToMatcher', 'goog.labs.testing.GreaterThanEqualToMatcher', 'goog.labs.testing.GreaterThanMatcher', 'goog.labs.testing.LessThanEqualToMatcher', 'goog.labs.testing.LessThanMatcher'], ['goog.asserts', 'goog.labs.testing.Matcher']);
 goog.addDependency('labs/testing/objectmatcher.js', ['goog.labs.testing.HasPropertyMatcher', 'goog.labs.testing.InstanceOfMatcher', 'goog.labs.testing.IsNullMatcher', 'goog.labs.testing.IsNullOrUndefinedMatcher', 'goog.labs.testing.IsUndefinedMatcher', 'goog.labs.testing.ObjectEqualsMatcher'], ['goog.labs.testing.Matcher', 'goog.string']);
 goog.addDependency('labs/testing/stringmatcher.js', ['goog.labs.testing.ContainsStringMatcher', 'goog.labs.testing.EndsWithMatcher', 'goog.labs.testing.EqualToIgnoringCaseMatcher', 'goog.labs.testing.EqualToIgnoringWhitespaceMatcher', 'goog.labs.testing.EqualsMatcher', 'goog.labs.testing.RegexMatcher', 'goog.labs.testing.StartsWithMatcher', 'goog.labs.testing.StringContainsInOrderMatcher'], ['goog.asserts', 'goog.labs.testing.Matcher', 'goog.string']);
+goog.addDependency('labs/useragent/engine.js', ['goog.labs.userAgent.engine'], ['goog.memoize']);
+goog.addDependency('labs/useragent/engine_test.js', ['goog.labs.userAgent.engineTest'], ['goog.array', 'goog.labs.userAgent.engine', 'goog.testing.PropertyReplacer', 'goog.testing.jsunit']);
 goog.addDependency('locale/countries.js', ['goog.locale.countries'], []);
 goog.addDependency('locale/defaultlocalenameconstants.js', ['goog.locale.defaultLocaleNameConstants'], []);
 goog.addDependency('locale/genericfontnames.js', ['goog.locale.genericFontNames'], []);
@@ -658,7 +662,7 @@ goog.addDependency('ui/attachablemenu.js', ['goog.ui.AttachableMenu'], ['goog.a1
 goog.addDependency('ui/bidiinput.js', ['goog.ui.BidiInput'], ['goog.events', 'goog.events.InputHandler', 'goog.i18n.bidi', 'goog.ui.Component']);
 goog.addDependency('ui/bubble.js', ['goog.ui.Bubble'], ['goog.Timer', 'goog.events', 'goog.events.EventType', 'goog.math.Box', 'goog.positioning', 'goog.positioning.AbsolutePosition', 'goog.positioning.AnchoredPosition', 'goog.positioning.Corner', 'goog.positioning.CornerBit', 'goog.style', 'goog.ui.Component', 'goog.ui.Popup']);
 goog.addDependency('ui/button.js', ['goog.ui.Button', 'goog.ui.Button.Side'], ['goog.events.KeyCodes', 'goog.ui.ButtonRenderer', 'goog.ui.ButtonSide', 'goog.ui.Control', 'goog.ui.ControlContent', 'goog.ui.NativeButtonRenderer']);
-goog.addDependency('ui/buttonrenderer.js', ['goog.ui.ButtonRenderer'], ['goog.a11y.aria', 'goog.a11y.aria.Role', 'goog.a11y.aria.State', 'goog.asserts', 'goog.ui.ButtonSide', 'goog.ui.Component.State', 'goog.ui.ControlRenderer']);
+goog.addDependency('ui/buttonrenderer.js', ['goog.ui.ButtonRenderer'], ['goog.a11y.aria', 'goog.a11y.aria.Role', 'goog.a11y.aria.State', 'goog.asserts', 'goog.string', 'goog.ui.ButtonSide', 'goog.ui.Component.State', 'goog.ui.ControlRenderer']);
 goog.addDependency('ui/buttonside.js', ['goog.ui.ButtonSide'], []);
 goog.addDependency('ui/charcounter.js', ['goog.ui.CharCounter', 'goog.ui.CharCounter.Display'], ['goog.dom', 'goog.events', 'goog.events.EventTarget', 'goog.events.InputHandler']);
 goog.addDependency('ui/charpicker.js', ['goog.ui.CharPicker'], ['goog.a11y.aria', 'goog.array', 'goog.asserts', 'goog.dom', 'goog.events', 'goog.events.EventHandler', 'goog.events.EventType', 'goog.events.InputHandler', 'goog.events.KeyHandler', 'goog.i18n.CharListDecompressor', 'goog.i18n.uChar', 'goog.i18n.uChar.NameFetcher', 'goog.structs.Set', 'goog.style', 'goog.ui.Button', 'goog.ui.Component', 'goog.ui.ContainerScroller', 'goog.ui.FlatButtonRenderer', 'goog.ui.HoverCard', 'goog.ui.LabelInput', 'goog.ui.Menu', 'goog.ui.MenuButton', 'goog.ui.MenuItem', 'goog.ui.Tooltip.ElementTooltipPosition']);
