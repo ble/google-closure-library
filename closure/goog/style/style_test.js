@@ -135,7 +135,7 @@ function testGetStyleMsFilter() {
   // Element with -ms-filter style set.
   var e = goog.dom.getElement('msFilter');
 
-  if (goog.userAgent.IE && goog.userAgent.isDocumentMode(8)) {
+  if (goog.userAgent.IE && goog.userAgent.isDocumentModeOrHigher(8)) {
     // Only IE8 supports -ms-filter and returns it as value for the "filter"
     // property. When in compatibility mode, -ms-filter is not supported
     // and IE8 behaves as IE7 so the other case will apply.
@@ -569,8 +569,9 @@ function testGetPositionTolerantToNoDocumentElementBorder() {
     document.body.appendChild(div);
 
     // Test all major positioning methods.
-    // Temporarily disabled for IE8 - IE8 returns dimensions multiplied by 100
-    expectedFailures.expectFailureFor(isIE8() && !goog.dom.isCss1CompatMode());
+    // Disabled for IE8 and below - IE8 returns dimensions multiplied by 100.
+    expectedFailures.expectFailureFor(
+        goog.userAgent.IE && !goog.userAgent.isVersionOrHigher(9));
     try {
       // Test all major positioning methods.
       var pos = goog.style.getClientPosition(div);
@@ -1001,7 +1002,7 @@ function testSetBorderBoxSize() {
   } else if (goog.userAgent.WEBKIT) {
     assertEquals('border-box', el.style.WebkitBoxSizing);
   } else if (goog.userAgent.OPERA ||
-      goog.userAgent.IE && goog.userAgent.isDocumentMode(8)) {
+      goog.userAgent.IE && goog.userAgent.isDocumentModeOrHigher(8)) {
     assertEquals('border-box', el.style.boxSizing);
   }
 
@@ -1012,7 +1013,7 @@ function testSetBorderBoxSize() {
   // a content box of size 0.
   // NOTE(nicksantos): I'm not really sure why IE7 is special here.
   var isIeLt8Quirks = goog.userAgent.IE &&
-      !goog.userAgent.isDocumentMode(8) &&
+      !goog.userAgent.isDocumentModeOrHigher(8) &&
       !goog.dom.isCss1CompatMode();
   assertEquals(20, el.offsetWidth);
   assertEquals(isIeLt8Quirks ? 39 : 20, el.offsetHeight);
@@ -1059,7 +1060,7 @@ function testSetContentBoxSize() {
   } else if (goog.userAgent.WEBKIT) {
     assertEquals('content-box', el.style.WebkitBoxSizing);
   } else if (goog.userAgent.OPERA ||
-      goog.userAgent.IE && goog.userAgent.isDocumentMode(8)) {
+      goog.userAgent.IE && goog.userAgent.isDocumentModeOrHigher(8)) {
     assertEquals('content-box', el.style.boxSizing);
   }
 
@@ -1068,7 +1069,7 @@ function testSetContentBoxSize() {
 
   // NOTE(nicksantos): I'm not really sure why IE7 is special here.
   var isIeLt8Quirks = goog.userAgent.IE &&
-      !goog.userAgent.isDocumentMode('8') &&
+      !goog.userAgent.isDocumentModeOrHigher('8') &&
       !goog.dom.isCss1CompatMode();
   assertEquals(20, el.offsetWidth);
   assertEquals(isIeLt8Quirks ? 39 : 20, el.offsetHeight);
@@ -1750,7 +1751,7 @@ function testGetVisibleRectForElementWithBodyScrolled() {
 function testGetVisibleRectForElementWithNestedAreaAndNonOffsetAncestor() {
   // IE7 quirks mode somehow consider container2 below as offset parent
   // of the element, which is incorrect.
-  if (goog.userAgent.IE && !goog.userAgent.isDocumentMode(8) &&
+  if (goog.userAgent.IE && !goog.userAgent.isDocumentModeOrHigher(8) &&
       !goog.dom.isCss1CompatMode()) {
     return;
   }
@@ -1998,6 +1999,10 @@ function testOverflowOffsetParent() {
 }
 
 function testGetViewportPageOffset() {
+  expectedFailures.expectFailureFor(
+      goog.userAgent.IE && !goog.userAgent.isVersionOrHigher(9),
+      'Test has been flaky for ie8-winxp image. Disabling.');
+
   var testViewport = goog.dom.getElement('test-viewport');
   testViewport.style.height = '5000px';
   testViewport.style.width = '5000px';
@@ -2534,9 +2539,4 @@ function testGetVendorStyleOpera() {
   assertUserAgent([UserAgents.OPERA], 'Opera');
   goog.style.setStyle(mockElement, 'transform', styleValue);
   assertEquals(styleValue, goog.style.getStyle(mockElement, 'transform'));
-}
-
-function isIE8() {
-  return goog.userAgent.IE && goog.userAgent.isDocumentMode(8) &&
-      !goog.userAgent.isDocumentMode(9);
 }
