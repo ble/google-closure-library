@@ -22,7 +22,6 @@
 goog.provide('goog.async.Deferred');
 goog.provide('goog.async.Deferred.AlreadyCalledError');
 goog.provide('goog.async.Deferred.CanceledError');
-goog.provide('goog.async.Deferred.CancelledError');
 
 goog.require('goog.array');
 goog.require('goog.asserts');
@@ -80,6 +79,25 @@ goog.async.Deferred = function(opt_onCancelFunction, opt_defaultScope) {
    * @private
    */
   this.defaultScope_ = opt_defaultScope || null;
+
+  if (goog.async.Deferred.LONG_STACK_TRACES) {
+    /**
+     * Holds the stack trace at time of deferred creation if the JS engine
+     * provides the Error.captureStackTrace API.
+     * @private {?string}
+     */
+    this.constructorStack_ = null;
+    if (Error.captureStackTrace) {
+      var target = { stack: '' };
+      Error.captureStackTrace(target, goog.async.Deferred);
+      // Check if Error.captureStackTrace worked. It fails in gjstest.
+      if (typeof target.stack == 'string') {
+        // Remove first line and force stringify to prevent memory leak due to
+      // holding on to actual stack frames.
+        this.constructorStack_ = target.stack.replace(/^[^\n]*\n/, '');
+      }
+    }
+  }
 };
 
 
@@ -169,7 +187,14 @@ goog.async.Deferred.prototype.branches_ = 0;
  * @define {boolean} Whether unhandled errors should always get rethrown to the
  * global scope. Defaults to the value of goog.DEBUG.
  */
-goog.async.Deferred.STRICT_ERRORS = false;
+goog.define('goog.async.Deferred.STRICT_ERRORS', false);
+
+
+/**
+ * @define {boolean} Whether to attempt to make stack traces long.  Defaults to
+ * the value of goog.DEBUG.
+ */
+goog.define('goog.async.Deferred.LONG_STACK_TRACES', goog.DEBUG);
 
 
 /**
@@ -298,7 +323,29 @@ goog.async.Deferred.prototype.callback = function(opt_result) {
 goog.async.Deferred.prototype.errback = function(opt_result) {
   this.check_();
   this.assertNotDeferred_(opt_result);
+  this.makeStackTraceLong_(opt_result);
   this.updateResult_(false /* isSuccess */, opt_result);
+};
+
+
+/**
+ * Attempt to make the error's stack trace be long in that it contains the
+ * stack trace from the point where the deferred was created on top of the
+ * current stack trace to give additional context.
+ * @param {*} error
+ * @private
+ */
+goog.async.Deferred.prototype.makeStackTraceLong_ = function(error) {
+  if (!goog.async.Deferred.LONG_STACK_TRACES) {
+    return;
+  }
+  if (this.constructorStack_ && goog.isObject(error) && error.stack &&
+      // Stack looks like it was system generated. See
+      // https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
+      (/^[^\n]+(\n   [^\n]+)+/).test(error.stack)) {
+    error.stack = error.stack + '\nDEFERRED OPERATION:\n' +
+        this.constructorStack_;
+  }
 };
 
 
@@ -546,6 +593,7 @@ goog.async.Deferred.prototype.fire_ = function() {
       } catch (ex) {
         res = ex;
         this.hadError_ = true;
+        this.makeStackTraceLong_(res);
 
         if (!this.hasErrback_()) {
           // If an error is thrown with no additional errbacks in the queue,
@@ -616,15 +664,6 @@ goog.async.Deferred.canceled = function() {
   d.cancel();
   return d;
 };
-
-
-/**
- * Creates a Deferred that has already been canceled. Aliases the preferred
- * spelling {@see goog.async.Deferred.canceled}.
- * @deprecated Renamed to goog.async.Deferred.canceled. Alias to be removed
- *     after 2013-04-03.
- */
-goog.async.Deferred.cancelled = goog.async.Deferred.canceled;
 
 
 /**
@@ -723,14 +762,3 @@ goog.async.Deferred.CanceledError.prototype.message = 'Deferred was canceled';
 
 /** @override */
 goog.async.Deferred.CanceledError.prototype.name = 'CanceledError';
-
-
-/**
- * An error sub class that is used when a Deferred is canceled. Aliases the
- * preferred spelling {@see goog.async.Deferred.CanceledError}.
- * @constructor
- * @extends {goog.debug.Error}
- * @deprecated Renamed to goog.async.Deferred.CanceledError. Alias to be removed
- *     after 2013-04-03.
- */
-goog.async.Deferred.CancelledError = goog.async.Deferred.CanceledError;
