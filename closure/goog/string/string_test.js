@@ -319,16 +319,20 @@ function testCaseInsensitiveEquals() {
 
 // === tests for goog.string.subs ===
 function testSubs() {
-  assertEquals('Should be the same', goog.string.subs('nothing to subs'),
-               'nothing to subs');
-  assertEquals('Should be the same', goog.string.subs('%s', '1'), '1');
   assertEquals('Should be the same',
-               goog.string.subs('%s%s%s', '1', 2, true), '12true');
+               'nothing to subs',
+               goog.string.subs('nothing to subs'));
+  assertEquals('Should be the same',
+               '1',
+               goog.string.subs('%s', '1'));
+  assertEquals('Should be the same',
+               '12true',
+               goog.string.subs('%s%s%s', '1', 2, true));
   function f() {
-    assertTrue('This should not be called', false);
+    fail('This should not be called');
   }
   f.toString = function() { return 'f'; };
-  assertEquals('Should not call function', goog.string.subs('%s', f), 'f');
+  assertEquals('Should not call function', 'f', goog.string.subs('%s', f));
 
   // If the string that is to be substituted in contains $& then it will be
   // usually be replaced with %s, we need to check goog.string.subs, handles
@@ -346,6 +350,23 @@ function testSubs() {
     assertEquals('$' + i + ' should not be substituted',
         '_$' + i + '_', goog.string.subs('%s', '_$' + i + '_'));
   }
+
+  assertEquals(
+      'Only the first three "%s" strings should be replaced.',
+      'test foo test bar test baz test %s test %s test',
+      goog.string.subs(
+          'test %s test %s test %s test %s test %s test',
+          'foo', 'bar', 'baz'));
+}
+
+
+/**
+ * Verifies that if too many arguments are given, they are ignored.
+ * Logic test for bug documented here: http://go/eusxz
+ */
+function testSubsTooManyArguments() {
+  assertEquals('one', goog.string.subs('one', 'two', 'three'));
+  assertEquals('onetwo', goog.string.subs('one%s', 'two', 'three'));
 }
 
 
@@ -1097,3 +1118,56 @@ function testParseInt() {
   assertEquals(-243, goog.string.parseInt('   -0xF3    '));
   assertTrue(isNaN(goog.string.parseInt(' - 0x32 ')));
 }
+
+function testIsLowerCamelCase() {
+  assertTrue(goog.string.isLowerCamelCase('foo'));
+  assertTrue(goog.string.isLowerCamelCase('fooBar'));
+  assertTrue(goog.string.isLowerCamelCase('fooBarBaz'));
+  assertTrue(goog.string.isLowerCamelCase('innerHTML'));
+
+  assertFalse(goog.string.isLowerCamelCase(''));
+  assertFalse(goog.string.isLowerCamelCase('a3a'));
+  assertFalse(goog.string.isLowerCamelCase('goog.dom'));
+  assertFalse(goog.string.isLowerCamelCase('Foo'));
+  assertFalse(goog.string.isLowerCamelCase('FooBar'));
+  assertFalse(goog.string.isLowerCamelCase('ABCBBD'));
+}
+
+function testIsUpperCamelCase() {
+  assertFalse(goog.string.isUpperCamelCase(''));
+  assertFalse(goog.string.isUpperCamelCase('foo'));
+  assertFalse(goog.string.isUpperCamelCase('fooBar'));
+  assertFalse(goog.string.isUpperCamelCase('fooBarBaz'));
+  assertFalse(goog.string.isUpperCamelCase('innerHTML'));
+  assertFalse(goog.string.isUpperCamelCase('a3a'));
+  assertFalse(goog.string.isUpperCamelCase('goog.dom'));
+  assertFalse(goog.string.isUpperCamelCase('Boyz2Men'));
+
+  assertTrue(goog.string.isUpperCamelCase('ABCBBD'));
+  assertTrue(goog.string.isUpperCamelCase('Foo'));
+  assertTrue(goog.string.isUpperCamelCase('FooBar'));
+  assertTrue(goog.string.isUpperCamelCase('FooBarBaz'));
+}
+
+function testSplitLimit() {
+  assertArrayEquals(['a*a*a*a'], goog.string.splitLimit('a*a*a*a', '*', -1));
+  assertArrayEquals(['a*a*a*a'], goog.string.splitLimit('a*a*a*a', '*', 0));
+  assertArrayEquals(['a', 'a*a*a'], goog.string.splitLimit('a*a*a*a', '*', 1));
+  assertArrayEquals(['a', 'a', 'a*a'],
+                    goog.string.splitLimit('a*a*a*a', '*', 2));
+  assertArrayEquals(['a', 'a', 'a', 'a'],
+                    goog.string.splitLimit('a*a*a*a', '*', 3));
+  assertArrayEquals(['a', 'a', 'a', 'a'],
+                    goog.string.splitLimit('a*a*a*a', '*', 4));
+
+  assertArrayEquals(['bbbbbbbbbbbb'],
+                    goog.string.splitLimit('bbbbbbbbbbbb', 'a', 10));
+  assertArrayEquals(['babab', 'bab', 'abb'],
+                    goog.string.splitLimit('bababaababaaabb', 'aa', 10));
+  assertArrayEquals(['babab', 'babaaabb'],
+                    goog.string.splitLimit('bababaababaaabb', 'aa', 1));
+  assertArrayEquals(
+      ['b', 'a', 'b', 'a', 'b', 'a', 'a', 'b', 'a', 'b', 'aaabb'],
+      goog.string.splitLimit('bababaababaaabb', '', 10));
+}
+

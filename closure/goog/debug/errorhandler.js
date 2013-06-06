@@ -193,6 +193,18 @@ goog.debug.ErrorHandler.prototype.getProtectedFunction = function(fn) {
                 e;
           }
         }
+        if (goog.DEBUG) {
+          // Work around for https://code.google.com/p/v8/issues/detail?id=2625
+          // and https://code.google.com/p/chromium/issues/detail?id=237059
+          // Custom errors and errors with custom stack traces show the wrong
+          // stack trace
+          // If it has a stack and Error.captureStackTrace is supported (only
+          // supported in V8 as of May 2013) log the stack to the console.
+          if (e && e.stack && Error.captureStackTrace &&
+              goog.global['console']) {
+            goog.global['console']['error'](e.message, e.stack);
+          }
+        }
         // Re-throw original error. This is great for debugging as it makes
         // browser JS dev consoles show the correct error and stack trace.
         throw e;

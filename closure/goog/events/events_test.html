@@ -38,7 +38,6 @@ See the COPYING file for details.
   }
 
   function tearDown() {
-    goog.events.STRICT_EVENT_TARGET = false;
     goog.events.handleBrowserEvent_ = originalHandleBrowserEvent;
     goog.disposeAll(et1, et2, et3);
     goog.events.removeAllNativeListeners();
@@ -171,33 +170,6 @@ See the COPYING file for details.
     goog.events.removeAll(et1);
     goog.events.removeAll(et2);
     goog.events.removeAll(et3);
-  }
-
-  function testBubbleShortCircuit() {
-    // Short-circuit no longer works with listenable.
-    if (goog.events.Listenable.USE_LISTENABLE_INTERFACE) {
-      return;
-    }
-
-    et1.setParentEventTarget(et2);
-
-    et2.getParentEventTarget = function() {
-      fail('This should never be called');
-    };
-
-    var count = 0;
-    function callback() {
-      count++;
-    }
-
-    goog.events.listen(et1, 'test', callback, false);
-
-    et1.dispatchEvent('test');
-
-    assertEquals(1, count);
-
-    goog.events.removeAll(et1);
-    goog.events.removeAll(et2);
   }
 
   function testCaptureSingle() {
@@ -400,7 +372,7 @@ See the COPYING file for details.
     var div = document.createElement('div');
     var key = goog.events.listen(
         div, goog.events.EventType.CLICK, goog.nullFunction);
-    var listenerStack = goog.events.listeners_[key].creationStack;
+    var listenerStack = key.creationStack;
 
     // Check that the name of this test function occurs in the stack trace.
     assertContains('testCreationStack', listenerStack);
@@ -417,11 +389,7 @@ See the COPYING file for details.
 
     goog.removeUid(et1);
     et1.dispatchEvent('foo');
-    if (goog.events.Listenable.USE_LISTENABLE_INTERFACE) {
-      assertEquals(1, listener.getCallCount());
-    } else {
-      assertEquals(0, listener.getCallCount());
-    }
+    assertEquals(1, listener.getCallCount());
   }
 
   /**
@@ -643,8 +611,6 @@ See the COPYING file for details.
   }
 
   function testAssertWhenUsedWithUninitializedCustomEventTarget() {
-    goog.events.STRICT_EVENT_TARGET = true;
-
     var SubClass = function() { /* does not call superclass ctor */ };
     goog.inherits(SubClass, goog.events.EventTarget);
 
@@ -666,7 +632,6 @@ See the COPYING file for details.
   }
 
   function testAssertWhenDispatchEventIsUsedWithNonCustomEventTarget() {
-    goog.events.STRICT_EVENT_TARGET = true;
     var obj = {};
     e = assertThrows(function() {
       goog.events.dispatchEvent(obj, 'test1');

@@ -14,8 +14,6 @@
 
 /**
  * @fileoverview An interface for a listenable JavaScript object.
- *
- * WARNING(chrishenry): DO NOT USE! SUPPORT NOT FULLY IMPLEMENTED.
  */
 
 goog.provide('goog.events.Listenable');
@@ -28,17 +26,6 @@ goog.provide('goog.events.ListenableKey');
  * @interface
  */
 goog.events.Listenable = function() {};
-
-
-/**
- * Whether to use the new listenable interface and mechanism in
- * goog.events and goog.events.EventTarget.
- *
- * TODO(user): Remove this once launched and stable.
- *
- * @type {boolean}
- */
-goog.events.Listenable.USE_LISTENABLE_INTERFACE = true;
 
 
 /**
@@ -161,7 +148,7 @@ goog.events.Listenable.prototype.unlistenByKey;
  *
  * @param {goog.events.EventLike} e Event object.
  * @return {boolean} If anyone called preventDefault on the event object (or
- *     if any of the listeners returns false this will also return false.
+ *     if any of the listeners returns false) this will also return false.
  */
 goog.events.Listenable.prototype.dispatchEvent;
 
