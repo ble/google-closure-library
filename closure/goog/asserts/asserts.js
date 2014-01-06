@@ -37,6 +37,7 @@ goog.provide('goog.asserts');
 goog.provide('goog.asserts.AssertionError');
 
 goog.require('goog.debug.Error');
+goog.require('goog.dom.NodeType');
 goog.require('goog.string');
 
 
@@ -53,6 +54,7 @@ goog.define('goog.asserts.ENABLE_ASSERTS', goog.DEBUG);
  * @param {!Array.<*>} messageArgs The items to substitute into the pattern.
  * @constructor
  * @extends {goog.debug.Error}
+ * @final
  */
 goog.asserts.AssertionError = function(messagePattern, messageArgs) {
   messageArgs.unshift(messagePattern);
@@ -259,6 +261,26 @@ goog.asserts.assertBoolean = function(value, opt_message, var_args) {
 
 
 /**
+ * Checks if the value is a DOM Element if goog.asserts.ENABLE_ASSERTS is true.
+ * @param {*} value The value to check.
+ * @param {string=} opt_message Error message in case of failure.
+ * @param {...*} var_args The items to substitute into the failure message.
+ * @return {!Element} The value, likely to be a DOM Element when asserts are
+ *     enabled.
+ * @throws {goog.asserts.AssertionError} When the value is not a boolean.
+ */
+goog.asserts.assertElement = function(value, opt_message, var_args) {
+  if (goog.asserts.ENABLE_ASSERTS && (!goog.isObject(value) ||
+      value.nodeType != goog.dom.NodeType.ELEMENT)) {
+    goog.asserts.doAssertFailure_('Expected Element but got %s: %s.',
+        [goog.typeOf(value), value], opt_message,
+        Array.prototype.slice.call(arguments, 2));
+  }
+  return /** @type {!Element} */ (value);
+};
+
+
+/**
  * Checks if the value is an instance of the user-defined type if
  * goog.asserts.ENABLE_ASSERTS is true.
  *
@@ -281,3 +303,13 @@ goog.asserts.assertInstanceof = function(value, type, opt_message, var_args) {
   return value;
 };
 
+
+/**
+ * Checks that no enumerable keys are present in Object.prototype. Such keys
+ * would break most code that use {@code for (var ... in ...)} loops.
+ */
+goog.asserts.assertObjectPrototypeIsIntact = function() {
+  for (var key in Object.prototype) {
+    goog.asserts.fail(key + ' should not be enumerable in Object.prototype.');
+  }
+};

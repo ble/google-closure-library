@@ -20,35 +20,19 @@ goog.provide('goog.labs.userAgent.deviceTest');
 
 goog.require('goog.labs.userAgent.device');
 goog.require('goog.labs.userAgent.testAgents');
-goog.require('goog.testing.PropertyReplacer');
+goog.require('goog.labs.userAgent.util');
 goog.require('goog.testing.jsunit');
 
 goog.setTestOnly('goog.labs.userAgent.deviceTest');
 
-var propertyReplacer = new goog.testing.PropertyReplacer();
-
 function setUp() {
-  // disable memoization
-  propertyReplacer.set(goog.memoize, 'ENABLE_MEMOIZE', false);
-}
-
-function tearDown() {
-  propertyReplacer.reset();
-}
-
-function setGlobalUAString(uaString) {
-  var mockGlobal = {
-    'navigator': {
-      'userAgent': uaString
-    }
-  };
-  propertyReplacer.set(goog, 'global', mockGlobal);
+  goog.labs.userAgent.util.setUserAgent(null);
 }
 
 function testMobile() {
   assertIsMobile(goog.labs.userAgent.testAgents.ANDROID_BROWSER_235);
   assertIsMobile(goog.labs.userAgent.testAgents.CHROME_ANDROID);
-  assertIsMobile(goog.labs.userAgent.testAgents.SAFARI_IPHONE);
+  assertIsMobile(goog.labs.userAgent.testAgents.SAFARI_IPHONE_6);
 }
 
 function testTablet() {
@@ -61,24 +45,27 @@ function testDesktop() {
   assertIsDesktop(goog.labs.userAgent.testAgents.CHROME_25);
   assertIsDesktop(goog.labs.userAgent.testAgents.OPERA_10);
   assertIsDesktop(goog.labs.userAgent.testAgents.FIREFOX_19);
+  assertIsDesktop(goog.labs.userAgent.testAgents.IE_9);
+  assertIsDesktop(goog.labs.userAgent.testAgents.IE_10);
+  assertIsDesktop(goog.labs.userAgent.testAgents.IE_11);
 }
 
 function assertIsMobile(uaString) {
-  setGlobalUAString(uaString);
+  goog.labs.userAgent.util.setUserAgent(uaString);
   assertTrue(goog.labs.userAgent.device.isMobile());
   assertFalse(goog.labs.userAgent.device.isTablet());
   assertFalse(goog.labs.userAgent.device.isDesktop());
 }
 
 function assertIsTablet(uaString) {
-  setGlobalUAString(uaString);
+  goog.labs.userAgent.util.setUserAgent(uaString);
   assertTrue(goog.labs.userAgent.device.isTablet());
   assertFalse(goog.labs.userAgent.device.isMobile());
   assertFalse(goog.labs.userAgent.device.isDesktop());
 }
 
 function assertIsDesktop(uaString) {
-  setGlobalUAString(uaString);
+  goog.labs.userAgent.util.setUserAgent(uaString);
   assertTrue(goog.labs.userAgent.device.isDesktop());
   assertFalse(goog.labs.userAgent.device.isMobile());
   assertFalse(goog.labs.userAgent.device.isTablet());

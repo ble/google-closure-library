@@ -42,12 +42,6 @@ goog.provide('goog.net.WebChannelTransport');
  * or other techniques to access the same transport instance
  * across different window contexts.
  *
- * To avoid circular dependency or the need to introduce another factory class,
- * WebChannelTransport instances are to be created directly by using the
- * constructor of available WebChannelTransport implementation classes:
- * 1. Legacy transport: {@link goog.net.BrowserChannelTransport}
- * 2. Default transport: to come ...
- *
  * @interface
  */
 goog.net.WebChannelTransport = function() {};
@@ -74,7 +68,8 @@ goog.net.WebChannelTransport.LATEST_VERSION_ = 0;
  *
  * @param {string} url The URL path for the new WebChannel instance.
  * @param {!goog.net.WebChannel.Options=} opt_options Configuration for the
- *     new WebChannel instance.
+ *     new WebChannel instance. The configuration object is reusable after
+ *     the new channel instance is created.
  * @return {!goog.net.WebChannel} the newly created WebChannel instance.
  */
 goog.net.WebChannelTransport.prototype.createWebChannel = goog.abstractMethod;

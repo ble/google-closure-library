@@ -184,6 +184,22 @@ function testGetComputedStyleFilter() {
   }
 }
 
+function testGetComputedBoxSizing() {
+  if (!goog.userAgent.IE || goog.userAgent.isVersionOrHigher(8)) {
+    var defaultBoxSizing = goog.dom.isCss1CompatMode() ?
+        'content-box' : 'border-box';
+    var el = goog.dom.getElement('box-sizing-unset');
+    assertEquals(defaultBoxSizing, goog.style.getComputedBoxSizing(el));
+
+    el = goog.dom.getElement('box-sizing-border-box');
+    assertEquals('border-box', goog.style.getComputedBoxSizing(el));
+  } else {
+    // IE7 and below don't support box-sizing.
+    assertNull(goog.style.getComputedBoxSizing(
+        goog.dom.getElement('box-sizing-border-box')));
+  }
+}
+
 function testGetComputedPosition() {
   assertEquals('position not set', 'static',
                goog.style.getComputedPosition($('position-unset')));
@@ -778,10 +794,74 @@ function testGetSizeSvgElements() {
   }
 }
 
+function testGetSizeSvgDocument() {
+  var svgEl = document.createElementNS &&
+      document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  if (!svgEl || svgEl.getAttribute('transform') == '' ||
+      (goog.userAgent.WEBKIT && !goog.userAgent.isVersionOrHigher(534.8))) {
+    // SVG not supported, or getBoundingClientRect not supported on SVG
+    // elements.
+    return;
+  }
+
+  var frame = goog.dom.getElement('svg-frame');
+  var doc = goog.dom.getFrameContentDocument(frame);
+  var rect = doc.getElementById('rect');
+  var dims = goog.style.getSize(rect);
+  assertEquals(50, dims.width);
+  assertEquals(50, dims.height);
+}
+
 function testGetSizeInlineBlock() {
   var el = $('height-test-inner');
   var dims = goog.style.getSize(el);
   assertNotEquals(0, dims.height);
+}
+
+function testGetSizeTransformedRotated() {
+  if (!hasWebkitTransform()) return;
+
+  var el = $('rotated');
+  goog.style.setSize(el, 300, 200);
+
+  var noRotateDims = goog.style.getTransformedSize(el);
+  assertEquals(300, noRotateDims.width);
+  assertEquals(200, noRotateDims.height);
+
+  el.style.webkitTransform = 'rotate(180deg)';
+  var rotate180Dims = goog.style.getTransformedSize(el);
+  assertEquals(300, rotate180Dims.width);
+  assertEquals(200, rotate180Dims.height);
+
+  el.style.webkitTransform = 'rotate(90deg)';
+  var rotate90ClockwiseDims = goog.style.getTransformedSize(el);
+  assertEquals(200, rotate90ClockwiseDims.width);
+  assertEquals(300, rotate90ClockwiseDims.height);
+
+  el.style.webkitTransform = 'rotate(-90deg)';
+  var rotate90CounterClockwiseDims = goog.style.getTransformedSize(el);
+  assertEquals(200, rotate90CounterClockwiseDims.width);
+  assertEquals(300, rotate90CounterClockwiseDims.height);
+}
+
+function testGetSizeTransformedScaled() {
+  if (!hasWebkitTransform()) return;
+
+  var el = $('scaled');
+  goog.style.setSize(el, 300, 200);
+
+  var noScaleDims = goog.style.getTransformedSize(el);
+  assertEquals(300, noScaleDims.width);
+  assertEquals(200, noScaleDims.height);
+
+  el.style.webkitTransform = 'scale(2, 0.5)';
+  var scaledDims = goog.style.getTransformedSize(el);
+  assertEquals(600, scaledDims.width);
+  assertEquals(100, scaledDims.height);
+}
+
+function hasWebkitTransform() {
+  return 'webkitTransform' in document.body.style;
 }
 
 function testGetSizeOfOrphanElement() {

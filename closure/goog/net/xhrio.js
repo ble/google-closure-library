@@ -43,11 +43,10 @@ goog.provide('goog.net.XhrIo.ResponseType');
 
 goog.require('goog.Timer');
 goog.require('goog.array');
-goog.require('goog.debug.Logger');
 goog.require('goog.debug.entryPointRegistry');
-goog.require('goog.events');
 goog.require('goog.events.EventTarget');
 goog.require('goog.json');
+goog.require('goog.log');
 goog.require('goog.net.ErrorCode');
 goog.require('goog.net.EventType');
 goog.require('goog.net.HttpStatus');
@@ -57,6 +56,7 @@ goog.require('goog.string');
 goog.require('goog.structs');
 goog.require('goog.structs.Map');
 goog.require('goog.uri.utils');
+goog.require('goog.userAgent');
 
 
 
@@ -93,7 +93,7 @@ goog.net.XhrIo = function(opt_xmlHttpFactory) {
 
   /**
    * The XMLHttpRequest object that is being used for the transfer.
-   * @private {XMLHttpRequest|GearsHttpRequest}
+   * @private {goog.net.XhrLike.OrNative|null}
    */
   this.xhr_ = null;
 
@@ -165,9 +165,8 @@ goog.net.XhrIo = function(opt_xmlHttpFactory) {
   this.timeoutInterval_ = 0;
 
   /**
-   * Window timeout ID used to cancel the timeout event handler if the request
-   * completes successfully.
-   * @private {Object}
+   * Timer to track request timeout.
+   * @private {?number}
    */
   this.timeoutId_ = null;
 
@@ -189,6 +188,12 @@ goog.net.XhrIo = function(opt_xmlHttpFactory) {
    * @private {boolean}
    */
   this.withCredentials_ = false;
+
+  /**
+   * True if we can use XMLHttpRequest's timeout directly.
+   * @private {boolean}
+   */
+  this.useXhr2Timeout_ = false;
 };
 goog.inherits(goog.net.XhrIo, goog.events.EventTarget);
 
@@ -214,7 +219,7 @@ goog.net.XhrIo.ResponseType = {
  * @const
  */
 goog.net.XhrIo.prototype.logger_ =
-    goog.debug.Logger.getLogger('goog.net.XhrIo');
+    goog.log.getLogger('goog.net.XhrIo');
 
 
 /**
@@ -247,6 +252,28 @@ goog.net.XhrIo.FORM_CONTENT_TYPE =
 
 
 /**
+ * The XMLHttpRequest Level two timeout delay ms property name.
+ *
+ * @see http://www.w3.org/TR/XMLHttpRequest/#the-timeout-attribute
+ *
+ * @private {string}
+ * @const
+ */
+goog.net.XhrIo.XHR2_TIMEOUT_ = 'timeout';
+
+
+/**
+ * The XMLHttpRequest Level two ontimeout handler property name.
+ *
+ * @see http://www.w3.org/TR/XMLHttpRequest/#the-timeout-attribute
+ *
+ * @private {string}
+ * @const
+ */
+goog.net.XhrIo.XHR2_ON_TIMEOUT_ = 'ontimeout';
+
+
+/**
  * All non-disposed instances of goog.net.XhrIo created
  * by {@link goog.net.XhrIo.send} are in this Array.
  * @see goog.net.XhrIo.cleanup
@@ -263,7 +290,7 @@ goog.net.XhrIo.sendInstances_ = [];
  * @param {Function=} opt_callback Callback function for when request is
  *     complete.
  * @param {string=} opt_method Send method, default: GET.
- * @param {ArrayBuffer|Blob|Document|FormData|GearsBlob|string=} opt_content
+ * @param {ArrayBuffer|Blob|Document|FormData|string=} opt_content
  *     Body data.
  * @param {Object|goog.structs.Map=} opt_headers Map of headers to add to the
  *     request.
@@ -278,11 +305,9 @@ goog.net.XhrIo.send = function(url, opt_callback, opt_method, opt_content,
   var x = new goog.net.XhrIo();
   goog.net.XhrIo.sendInstances_.push(x);
   if (opt_callback) {
-    goog.events.listen(x, goog.net.EventType.COMPLETE, opt_callback);
+    x.listen(goog.net.EventType.COMPLETE, opt_callback);
   }
-  goog.events.listen(x,
-                     goog.net.EventType.READY,
-                     goog.partial(goog.net.XhrIo.cleanupSend_, x));
+  x.listenOnce(goog.net.EventType.READY, x.cleanupSend_);
   if (opt_timeoutInterval) {
     x.setTimeoutInterval(opt_timeoutInterval);
   }
@@ -338,13 +363,11 @@ goog.net.XhrIo.protectEntryPoints = function(errorHandler) {
  * Disposes of the specified goog.net.XhrIo created by
  * {@link goog.net.XhrIo.send} and removes it from
  * {@link goog.net.XhrIo.pendingStaticSendInstances_}.
- * @param {goog.net.XhrIo} XhrIo An XhrIo created by
- *     {@link goog.net.XhrIo.send}.
  * @private
  */
-goog.net.XhrIo.cleanupSend_ = function(XhrIo) {
-  XhrIo.dispose();
-  goog.array.remove(goog.net.XhrIo.sendInstances_, XhrIo);
+goog.net.XhrIo.prototype.cleanupSend_ = function() {
+  this.dispose();
+  goog.array.remove(goog.net.XhrIo.sendInstances_, this);
 };
 
 
@@ -418,7 +441,7 @@ goog.net.XhrIo.prototype.getWithCredentials = function() {
  * Instance send that actually uses XMLHttpRequest to make a server call.
  * @param {string|goog.Uri} url Uri to make request to.
  * @param {string=} opt_method Send method, default: GET.
- * @param {ArrayBuffer|Blob|Document|FormData|GearsBlob|string=} opt_content
+ * @param {ArrayBuffer|Blob|Document|FormData|string=} opt_content
  *     Body data.
  * @param {Object|goog.structs.Map=} opt_headers Map of headers to add to the
  *     request.
@@ -453,12 +476,13 @@ goog.net.XhrIo.prototype.send = function(url, opt_method, opt_content,
    * @preserveTry
    */
   try {
-    this.logger_.fine(this.formatMsg_('Opening Xhr'));
+    goog.log.fine(this.logger_, this.formatMsg_('Opening Xhr'));
     this.inOpen_ = true;
-    this.xhr_.open(method, url, true);  // Always async!
+    this.xhr_.open(method, String(url), true);  // Always async!
     this.inOpen_ = false;
   } catch (err) {
-    this.logger_.fine(this.formatMsg_('Error opening Xhr: ' + err.message));
+    goog.log.fine(this.logger_,
+        this.formatMsg_('Error opening Xhr: ' + err.message));
     this.error_(goog.net.ErrorCode.EXCEPTION, err);
     return;
   }
@@ -513,27 +537,53 @@ goog.net.XhrIo.prototype.send = function(url, opt_method, opt_content,
    * @preserveTry
    */
   try {
-    if (this.timeoutId_) {
-      // This should never happen, since the if (this.active_) above shouldn't
-      // let execution reach this point if there is a request in progress...
-      goog.Timer.defaultTimerObject.clearTimeout(this.timeoutId_);
-      this.timeoutId_ = null;
-    }
+    this.cleanUpTimeoutTimer_(); // Paranoid, should never be running.
     if (this.timeoutInterval_ > 0) {
-      this.logger_.fine(this.formatMsg_('Will abort after ' +
-          this.timeoutInterval_ + 'ms if incomplete'));
-      this.timeoutId_ = goog.Timer.defaultTimerObject.setTimeout(
-          goog.bind(this.timeout_, this), this.timeoutInterval_);
+      this.useXhr2Timeout_ = goog.net.XhrIo.shouldUseXhr2Timeout_(this.xhr_);
+      goog.log.fine(this.logger_, this.formatMsg_('Will abort after ' +
+          this.timeoutInterval_ + 'ms if incomplete, xhr2 ' +
+          this.useXhr2Timeout_));
+      if (this.useXhr2Timeout_) {
+        this.xhr_[goog.net.XhrIo.XHR2_TIMEOUT_] = this.timeoutInterval_;
+        this.xhr_[goog.net.XhrIo.XHR2_ON_TIMEOUT_] =
+            goog.bind(this.timeout_, this);
+      } else {
+        this.timeoutId_ = goog.Timer.callOnce(this.timeout_,
+            this.timeoutInterval_, this);
+      }
     }
-    this.logger_.fine(this.formatMsg_('Sending request'));
+    goog.log.fine(this.logger_, this.formatMsg_('Sending request'));
     this.inSend_ = true;
     this.xhr_.send(content);
     this.inSend_ = false;
 
   } catch (err) {
-    this.logger_.fine(this.formatMsg_('Send error: ' + err.message));
+    goog.log.fine(this.logger_, this.formatMsg_('Send error: ' + err.message));
     this.error_(goog.net.ErrorCode.EXCEPTION, err);
   }
+};
+
+
+/**
+ * Determines if the argument is an XMLHttpRequest that supports the level 2
+ * timeout value and event.
+ *
+ * Currently, FF 21.0 OS X has the fields but won't actually call the timeout
+ * handler.  Perhaps the confusion in the bug referenced below hasn't
+ * entirely been resolved.
+ *
+ * @see http://www.w3.org/TR/XMLHttpRequest/#the-timeout-attribute
+ * @see https://bugzilla.mozilla.org/show_bug.cgi?id=525816
+ *
+ * @param {!goog.net.XhrLike.OrNative} xhr The request.
+ * @return {boolean} True if the request supports level 2 timeout.
+ * @private
+ */
+goog.net.XhrIo.shouldUseXhr2Timeout_ = function(xhr) {
+  return goog.userAgent.IE &&
+      goog.userAgent.isVersionOrHigher(9) &&
+      goog.isNumber(xhr[goog.net.XhrIo.XHR2_TIMEOUT_]) &&
+      goog.isDef(xhr[goog.net.XhrIo.XHR2_ON_TIMEOUT_]);
 };
 
 
@@ -551,7 +601,8 @@ goog.net.XhrIo.isContentTypeHeader_ = function(header) {
 
 /**
  * Creates a new XHR object.
- * @return {XMLHttpRequest|GearsHttpRequest} The newly created XHR object.
+ * @return {goog.net.XhrLike.OrNative|null} The newly created XHR
+ *     object.
  * @protected
  */
 goog.net.XhrIo.prototype.createXhr = function() {
@@ -574,7 +625,7 @@ goog.net.XhrIo.prototype.timeout_ = function() {
     this.lastError_ = 'Timed out after ' + this.timeoutInterval_ +
                       'ms, aborting';
     this.lastErrorCode_ = goog.net.ErrorCode.TIMEOUT;
-    this.logger_.fine(this.formatMsg_(this.lastError_));
+    goog.log.fine(this.logger_, this.formatMsg_(this.lastError_));
     this.dispatchEvent(goog.net.EventType.TIMEOUT);
     this.abort(goog.net.ErrorCode.TIMEOUT);
   }
@@ -622,7 +673,7 @@ goog.net.XhrIo.prototype.dispatchErrors_ = function() {
  */
 goog.net.XhrIo.prototype.abort = function(opt_failureCode) {
   if (this.xhr_ && this.active_) {
-    this.logger_.fine(this.formatMsg_('Aborting'));
+    goog.log.fine(this.logger_, this.formatMsg_('Aborting'));
     this.active_ = false;
     this.inAbort_ = true;
     this.xhr_.abort();
@@ -668,6 +719,10 @@ goog.net.XhrIo.prototype.disposeInternal = function() {
  * @private
  */
 goog.net.XhrIo.prototype.onReadyStateChange_ = function() {
+  if (this.isDisposed()) {
+    // This method is the target of an untracked goog.Timer.callOnce().
+    return;
+  }
   if (!this.inOpen_ && !this.inSend_ && !this.inAbort_) {
     // Were not being called from within a call to this.xhr_.send
     // this.xhr_.abort, or this.xhr_.open, so this is an entry point
@@ -714,7 +769,7 @@ goog.net.XhrIo.prototype.onReadyStateChangeHelper_ = function() {
     // NOTE(user): In IE if send() errors on a *local* request the readystate
     // is still changed to COMPLETE.  We need to ignore it and allow the
     // try/catch around send() to pick up the error.
-    this.logger_.fine(this.formatMsg_(
+    goog.log.fine(this.logger_, this.formatMsg_(
         'Local request error detected and ignored'));
 
   } else {
@@ -725,8 +780,7 @@ goog.net.XhrIo.prototype.onReadyStateChangeHelper_ = function() {
     // using a timer.
     if (this.inSend_ &&
         this.getReadyState() == goog.net.XmlHttp.ReadyState.COMPLETE) {
-      goog.Timer.defaultTimerObject.setTimeout(
-          goog.bind(this.onReadyStateChange_, this), 0);
+      goog.Timer.callOnce(this.onReadyStateChange_, 0, this);
       return;
     }
 
@@ -734,7 +788,7 @@ goog.net.XhrIo.prototype.onReadyStateChangeHelper_ = function() {
 
     // readyState indicates the transfer has finished
     if (this.isComplete()) {
-      this.logger_.fine(this.formatMsg_('Request complete'));
+      goog.log.fine(this.logger_, this.formatMsg_('Request complete'));
 
       this.active_ = false;
 
@@ -767,6 +821,9 @@ goog.net.XhrIo.prototype.onReadyStateChangeHelper_ = function() {
  */
 goog.net.XhrIo.prototype.cleanUpXhr_ = function(opt_fromDispose) {
   if (this.xhr_) {
+    // Cancel any pending timeout event handler.
+    this.cleanUpTimeoutTimer_();
+
     // Save reference so we can mark it as closed after the READY event.  The
     // READY event may trigger another request, thus we must nullify this.xhr_
     var xhr = this.xhr_;
@@ -775,12 +832,6 @@ goog.net.XhrIo.prototype.cleanUpXhr_ = function(opt_fromDispose) {
             goog.nullFunction : null;
     this.xhr_ = null;
     this.xhrOptions_ = null;
-
-    if (this.timeoutId_) {
-      // Cancel any pending timeout event handler.
-      goog.Timer.defaultTimerObject.clearTimeout(this.timeoutId_);
-      this.timeoutId_ = null;
-    }
 
     if (!opt_fromDispose) {
       this.dispatchEvent(goog.net.EventType.READY);
@@ -796,9 +847,24 @@ goog.net.XhrIo.prototype.cleanUpXhr_ = function(opt_fromDispose) {
       // This seems to occur with a Gears HTTP request. Delayed the setting of
       // this onreadystatechange until after READY is sent out and catching the
       // error to see if we can track down the problem.
-      this.logger_.severe('Problem encountered resetting onreadystatechange: ' +
-                          e.message);
+      goog.log.error(this.logger_,
+          'Problem encountered resetting onreadystatechange: ' + e.message);
     }
+  }
+};
+
+
+/**
+ * Make sure the timeout timer isn't running.
+ * @private
+ */
+goog.net.XhrIo.prototype.cleanUpTimeoutTimer_ = function() {
+  if (this.xhr_ && this.useXhr2Timeout_) {
+    this.xhr_[goog.net.XhrIo.XHR2_ON_TIMEOUT_] = null;
+  }
+  if (goog.isNumber(this.timeoutId_)) {
+    goog.Timer.clear(this.timeoutId_);
+    this.timeoutId_ = null;
   }
 };
 
@@ -869,7 +935,7 @@ goog.net.XhrIo.prototype.getStatus = function() {
     return this.getReadyState() > goog.net.XmlHttp.ReadyState.LOADED ?
         this.xhr_.status : -1;
   } catch (e) {
-    this.logger_.warning('Can not get status: ' + e.message);
+    goog.log.warning(this.logger_, 'Can not get status: ' + e.message);
     return -1;
   }
 };
@@ -891,7 +957,7 @@ goog.net.XhrIo.prototype.getStatusText = function() {
     return this.getReadyState() > goog.net.XmlHttp.ReadyState.LOADED ?
         this.xhr_.statusText : '';
   } catch (e) {
-    this.logger_.fine('Can not get status: ' + e.message);
+    goog.log.fine(this.logger_, 'Can not get status: ' + e.message);
     return '';
   }
 };
@@ -918,10 +984,10 @@ goog.net.XhrIo.prototype.getResponseText = function() {
   } catch (e) {
     // http://www.w3.org/TR/XMLHttpRequest/#the-responsetext-attribute
     // states that responseText should return '' (and responseXML null)
-    // when the state is not LOADING or DONE. Instead, IE and Gears can
+    // when the state is not LOADING or DONE. Instead, IE can
     // throw unexpected exceptions, for example when a request is aborted
     // or no data is available yet.
-    this.logger_.fine('Can not get responseText: ' + e.message);
+    goog.log.fine(this.logger_, 'Can not get responseText: ' + e.message);
     return '';
   }
 };
@@ -952,7 +1018,7 @@ goog.net.XhrIo.prototype.getResponseBody = function() {
   } catch (e) {
     // IE can throw unexpected exceptions, for example when a request is aborted
     // or no data is yet available.
-    this.logger_.fine('Can not get responseBody: ' + e.message);
+    goog.log.fine(this.logger_, 'Can not get responseBody: ' + e.message);
   }
   return null;
 };
@@ -969,7 +1035,7 @@ goog.net.XhrIo.prototype.getResponseXml = function() {
   try {
     return this.xhr_ ? this.xhr_.responseXML : null;
   } catch (e) {
-    this.logger_.fine('Can not get responseXML: ' + e.message);
+    goog.log.fine(this.logger_, 'Can not get responseXML: ' + e.message);
     return null;
   }
 };
@@ -1045,11 +1111,12 @@ goog.net.XhrIo.prototype.getResponse = function() {
         }
     }
     // Fell through to a response type that is not supported on this browser.
-    this.logger_.severe('Response type ' + this.responseType_ + ' is not ' +
-                        'supported on this browser');
+    goog.log.error(this.logger_,
+        'Response type ' + this.responseType_ + ' is not ' +
+        'supported on this browser');
     return null;
   } catch (e) {
-    this.logger_.fine('Can not get response: ' + e.message);
+    goog.log.fine(this.logger_, 'Can not get response: ' + e.message);
     return null;
   }
 };
@@ -1077,6 +1144,36 @@ goog.net.XhrIo.prototype.getResponseHeader = function(key) {
 goog.net.XhrIo.prototype.getAllResponseHeaders = function() {
   return this.xhr_ && this.isComplete() ?
       this.xhr_.getAllResponseHeaders() : '';
+};
+
+
+/**
+ * Returns all response headers as a key-value map.
+ * Multiple values for the same header key can be combined into one,
+ * separated by a comma and a space.
+ * Note that the native getResponseHeader method for retrieving a single header
+ * does a case insensitive match on the header name. This method does not
+ * include any case normalization logic, it will just return a key-value
+ * representation of the headers.
+ * See: http://www.w3.org/TR/XMLHttpRequest/#the-getresponseheader()-method
+ * @return {!Object.<string, string>} An object with the header keys as keys
+ *     and header values as values.
+ */
+goog.net.XhrIo.prototype.getResponseHeaders = function() {
+  var headersObject = {};
+  var headersArray = this.getAllResponseHeaders().split('\r\n');
+  for (var i = 0; i < headersArray.length; i++) {
+    if (goog.string.isEmpty(headersArray[i])) {
+      continue;
+    }
+    var keyValue = goog.string.splitLimit(headersArray[i], ': ', 2);
+    if (headersObject[keyValue[0]]) {
+      headersObject[keyValue[0]] += ', ' + keyValue[1];
+    } else {
+      headersObject[keyValue[0]] = keyValue[1];
+    }
+  }
+  return headersObject;
 };
 
 

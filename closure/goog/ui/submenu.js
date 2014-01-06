@@ -24,15 +24,12 @@ goog.provide('goog.ui.SubMenu');
 
 goog.require('goog.Timer');
 goog.require('goog.dom');
-goog.require('goog.dom.classes');
+goog.require('goog.dom.classlist');
 goog.require('goog.events.KeyCodes');
 goog.require('goog.positioning.AnchoredViewportPosition');
 goog.require('goog.positioning.Corner');
 goog.require('goog.style');
 goog.require('goog.ui.Component');
-goog.require('goog.ui.Component.EventType');
-goog.require('goog.ui.Component.State');
-goog.require('goog.ui.ControlContent');
 goog.require('goog.ui.Menu');
 goog.require('goog.ui.MenuItem');
 goog.require('goog.ui.SubMenuRenderer');
@@ -415,7 +412,7 @@ goog.ui.SubMenu.prototype.setSubMenuVisible_ = function(visible) {
       subMenu.setHighlightedIndex(-1);
     }
     this.hasKeyboardControl_ = visible;
-    goog.dom.classes.enable(this.getElement(),
+    goog.dom.classlist.enable(this.getElement(),
         goog.getCssName('goog-submenu-open'), visible);
     subMenu.setVisible(visible);
     // We must position after the menu is visible, otherwise positioning logic

@@ -14,6 +14,10 @@
 
 /**
  * @fileoverview Defines an interface that represents a Result.
+ *
+ * NOTE: goog.result is soft deprecated - we expect to replace this and
+ * goog.async.Deferred with a wrapper around W3C Promises:
+ * http://dom.spec.whatwg.org/#promises.
  */
 
 goog.provide('goog.result.Result');
@@ -32,6 +36,7 @@ goog.result.Result = function() {};
 
 /**
  * Attaches handlers to be called when the value of this Result is available.
+ * Handlers are called in the order they were added by wait.
  *
  * @param {!function(this:T, !goog.result.Result)} handler The function called
  *     when the value is available. The function is passed the Result object as
@@ -99,6 +104,7 @@ goog.result.Result.prototype.isCanceled = function() {};
  * The value to be passed to the error handlers invoked upon cancellation.
  * @constructor
  * @extends {Error}
+ * @final
  */
 goog.result.Result.CancelError = function() {
   // Note that this does not derive from goog.debug.Error in order to prevent

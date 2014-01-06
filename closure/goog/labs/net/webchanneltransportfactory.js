@@ -21,7 +21,7 @@
 goog.provide('goog.net.createWebChannelTransport');
 
 goog.require('goog.functions');
-goog.require('goog.net.BrowserChannelTransport');
+goog.require('goog.labs.net.webChannel.WebChannelBaseTransport');
 
 
 /**
@@ -31,4 +31,5 @@ goog.require('goog.net.BrowserChannelTransport');
  */
 goog.net.createWebChannelTransport =
     /** @type {function(): !goog.net.WebChannelTransport} */ (
-    goog.partial(goog.functions.create, goog.net.BrowserChannelTransport));
+    goog.partial(goog.functions.create,
+                 goog.labs.net.webChannel.WebChannelBaseTransport));

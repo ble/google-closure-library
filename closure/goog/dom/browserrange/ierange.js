@@ -26,12 +26,12 @@
 goog.provide('goog.dom.browserrange.IeRange');
 
 goog.require('goog.array');
-goog.require('goog.debug.Logger');
 goog.require('goog.dom');
 goog.require('goog.dom.NodeType');
 goog.require('goog.dom.RangeEndpoint');
 goog.require('goog.dom.TagName');
 goog.require('goog.dom.browserrange.AbstractRange');
+goog.require('goog.log');
 goog.require('goog.string');
 
 
@@ -42,6 +42,7 @@ goog.require('goog.string');
  * @param {Document} doc The document the range exists in.
  * @constructor
  * @extends {goog.dom.browserrange.AbstractRange}
+ * @final
  */
 goog.dom.browserrange.IeRange = function(range, doc) {
   /**
@@ -64,11 +65,11 @@ goog.inherits(goog.dom.browserrange.IeRange,
 
 /**
  * Logging object.
- * @type {goog.debug.Logger}
+ * @type {goog.log.Logger}
  * @private
  */
 goog.dom.browserrange.IeRange.logger_ =
-    goog.debug.Logger.getLogger('goog.dom.browserrange.IeRange');
+    goog.log.getLogger('goog.dom.browserrange.IeRange');
 
 
 /**
@@ -139,7 +140,7 @@ goog.dom.browserrange.IeRange.getBrowserRangeForNodes_ = function(startNode,
   var child, collapse = false;
   if (startNode.nodeType == goog.dom.NodeType.ELEMENT) {
     if (startOffset > startNode.childNodes.length) {
-      goog.dom.browserrange.IeRange.logger_.severe(
+      goog.log.error(goog.dom.browserrange.IeRange.logger_,
           'Cannot have startOffset > startNode child count');
     }
     child = startNode.childNodes[startOffset];
@@ -175,7 +176,7 @@ goog.dom.browserrange.IeRange.getBrowserRangeForNodes_ = function(startNode,
   collapse = false;
   if (endNode.nodeType == goog.dom.NodeType.ELEMENT) {
     if (endOffset > endNode.childNodes.length) {
-      goog.dom.browserrange.IeRange.logger_.severe(
+      goog.log.error(goog.dom.browserrange.IeRange.logger_,
           'Cannot have endOffset > endNode child count');
     }
     child = endNode.childNodes[endOffset];

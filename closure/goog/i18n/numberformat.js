@@ -24,6 +24,7 @@ goog.provide('goog.i18n.NumberFormat');
 goog.provide('goog.i18n.NumberFormat.CurrencyStyle');
 goog.provide('goog.i18n.NumberFormat.Format');
 
+goog.require('goog.asserts');
 goog.require('goog.i18n.CompactNumberFormatSymbols');
 goog.require('goog.i18n.NumberFormatSymbols');
 goog.require('goog.i18n.currency');
@@ -57,7 +58,7 @@ goog.i18n.NumberFormat = function(pattern, opt_currency, opt_currencyStyle) {
   this.minExponentDigits_ = 0;
   this.useSignForPositiveExponent_ = false;
 
-  /*
+  /**
    * Whether to show trailing zeros in the fraction when significantDigits_ is
    * positive.
    * @private {boolean}
@@ -75,6 +76,14 @@ goog.i18n.NumberFormat = function(pattern, opt_currency, opt_currencyStyle) {
   this.decimalSeparatorAlwaysShown_ = false;
   this.useExponentialNotation_ = false;
   this.compactStyle_ = goog.i18n.NumberFormat.CompactStyle.NONE;
+
+  /**
+   * The number to base the formatting on when using compact styles, or null
+   * if formatting should not be based on another number.
+   * @type {?number}
+   * @private
+   */
+  this.baseFormattingNumber_ = null;
 
   if (typeof pattern == 'number') {
     this.applyStandardPattern_(pattern);
@@ -150,34 +159,33 @@ goog.i18n.NumberFormat.isEnforceAsciiDigits = function() {
 /**
  * Sets minimum number of fraction digits.
  * @param {number} min the minimum.
+ * @return {!goog.i18n.NumberFormat} Reference to this NumberFormat object.
  */
 goog.i18n.NumberFormat.prototype.setMinimumFractionDigits = function(min) {
-  if (min > this.maximumFractionDigits_) {
-    throw Error('Min value must be less than max value');
-  }
   if (this.significantDigits_ > 0 && min > 0) {
     throw Error(
         'Can\'t combine significant digits and minimum fraction digits');
   }
   this.minimumFractionDigits_ = min;
+  return this;
 };
 
 
 /**
  * Sets maximum number of fraction digits.
  * @param {number} max the maximum.
+ * @return {!goog.i18n.NumberFormat} Reference to this NumberFormat object.
  */
 goog.i18n.NumberFormat.prototype.setMaximumFractionDigits = function(max) {
-  if (this.minimumFractionDigits_ > max) {
-    throw Error('Min value must be less than max value');
-  }
   this.maximumFractionDigits_ = max;
+  return this;
 };
 
 
 /**
  * Sets number of significant digits to show. Only fractions will be rounded.
  * @param {number} number The number of significant digits to include.
+ * @return {!goog.i18n.NumberFormat} Reference to this NumberFormat object.
  */
 goog.i18n.NumberFormat.prototype.setSignificantDigits = function(number) {
   if (this.minimumFractionDigits_ > 0 && number >= 0) {
@@ -185,6 +193,7 @@ goog.i18n.NumberFormat.prototype.setSignificantDigits = function(number) {
         'Can\'t combine significant digits and minimum fraction digits');
   }
   this.significantDigits_ = number;
+  return this;
 };
 
 
@@ -202,10 +211,48 @@ goog.i18n.NumberFormat.prototype.getSignificantDigits = function() {
  * is positive. If this is true and significantDigits_ is 2, 1 will be formatted
  * as '1.0'.
  * @param {boolean} showTrailingZeros Whether trailing zeros should be shown.
+ * @return {!goog.i18n.NumberFormat} Reference to this NumberFormat object.
  */
 goog.i18n.NumberFormat.prototype.setShowTrailingZeros =
     function(showTrailingZeros) {
   this.showTrailingZeros_ = showTrailingZeros;
+  return this;
+};
+
+
+/**
+ * Sets a number to base the formatting on when compact style formatting is
+ * used. If this is null, the formatting should be based only on the number to
+ * be formatting.
+ *
+ * This base formatting number can be used to format the target number as
+ * another number would be formatted. For example, 100,000 is normally formatted
+ * as "100K" in the COMPACT_SHORT format. To instead format it as '0.1M', the
+ * base number could be set to 1,000,000 in order to force all numbers to be
+ * formatted in millions. Similarly, 1,000,000,000 would normally be formatted
+ * as '1B' and setting the base formatting number to 1,000,000, would cause it
+ * to be formatted instead as '1,000M'.
+ *
+ * @param {?number} baseFormattingNumber The number to base formatting on, or
+ * null if formatting should not be based on another number.
+ * @return {!goog.i18n.NumberFormat} Reference to this NumberFormat object.
+ */
+goog.i18n.NumberFormat.prototype.setBaseFormatting =
+    function(baseFormattingNumber) {
+  goog.asserts.assert(goog.isNull(baseFormattingNumber) ||
+      isFinite(baseFormattingNumber));
+  this.baseFormattingNumber_ = baseFormattingNumber;
+  return this;
+};
+
+
+/**
+ * Gets the number on which compact formatting is currently based, or null if
+ * no such number is set. See setBaseFormatting() for more information.
+ * @return {?number}
+ */
+goog.i18n.NumberFormat.prototype.getBaseFormatting = function() {
+  return this.baseFormattingNumber_;
 };
 
 
@@ -450,7 +497,10 @@ goog.i18n.NumberFormat.prototype.format = function(number) {
   }
 
   var parts = [];
-  var unit = this.getUnitAfterRounding_(number);
+  var baseFormattingNumber = goog.isNull(this.baseFormattingNumber_) ?
+      number :
+      this.baseFormattingNumber_;
+  var unit = this.getUnitAfterRounding_(baseFormattingNumber, number);
   number /= Math.pow(10, unit.divisorBase);
 
   parts.push(unit.prefix);
@@ -520,6 +570,9 @@ goog.i18n.NumberFormat.prototype.roundNumber_ = function(number) {
  */
 goog.i18n.NumberFormat.prototype.subformatFixed_ =
     function(number, minIntDigits, parts) {
+  if (this.minimumFractionDigits_ > this.maximumFractionDigits_) {
+    throw Error('Min value must be less than max value');
+  }
 
   var rounded = this.roundNumber_(number);
   var power = Math.pow(10, this.maximumFractionDigits_);
@@ -1067,24 +1120,39 @@ goog.i18n.NumberFormat.prototype.getUnitFor_ = function(base, plurality) {
 /**
  * Get the compact unit divisor, accounting for rounding of the quantity.
  *
- * @param {number} number The number to get the unit for.
+ * @param {number} formattingNumber The number to base the formatting on. The
+ *     unit will be calculated from this number.
+ * @param {number} pluralityNumber The number to use for calculating the
+ *     plurality.
  * @return {!goog.i18n.NumberFormat.CompactNumberUnit} The unit after rounding.
  * @private
  */
-goog.i18n.NumberFormat.prototype.getUnitAfterRounding_ = function(number) {
+goog.i18n.NumberFormat.prototype.getUnitAfterRounding_ =
+    function(formattingNumber, pluralityNumber) {
   if (this.compactStyle_ == goog.i18n.NumberFormat.CompactStyle.NONE) {
     return goog.i18n.NumberFormat.NULL_UNIT_;
   }
 
-  number = Math.abs(number);
+  formattingNumber = Math.abs(formattingNumber);
+  pluralityNumber = Math.abs(pluralityNumber);
 
-  var plurality = this.pluralForm_(number);
-  var base = number <= 1 ? 0 : this.intLog10_(number);
-  var initialDivisor = this.getUnitFor_(base, plurality).divisorBase;
-  var attempt = number / Math.pow(10, initialDivisor);
-  var rounded = this.roundNumber_(attempt);
-  var finalPlurality = this.pluralForm_(rounded.intValue + rounded.fracValue);
-  return this.getUnitFor_(initialDivisor + this.intLog10_(rounded.intValue),
+  var initialPlurality = this.pluralForm_(formattingNumber);
+  // Compute the exponent from the formattingNumber, to compute the unit.
+  var base = formattingNumber <= 1 ? 0 : this.intLog10_(formattingNumber);
+  var initialDivisor = this.getUnitFor_(base, initialPlurality).divisorBase;
+  // Round both numbers based on the unit used.
+  var pluralityAttempt = pluralityNumber / Math.pow(10, initialDivisor);
+  var pluralityRounded = this.roundNumber_(pluralityAttempt);
+  var formattingAttempt = formattingNumber / Math.pow(10, initialDivisor);
+  var formattingRounded = this.roundNumber_(formattingAttempt);
+  // Compute the plurality of the pluralityNumber when formatted using the name
+  // units as the formattingNumber.
+  var finalPlurality =
+      this.pluralForm_(pluralityRounded.intValue + pluralityRounded.fracValue);
+  // Get the final unit, using the rounded formatting number to get the correct
+  // unit, and the plurality computed from the pluralityNumber.
+  return this.getUnitFor_(
+      initialDivisor + this.intLog10_(formattingRounded.intValue),
       finalPlurality);
 };
 
